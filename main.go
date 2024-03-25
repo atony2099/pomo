@@ -25,6 +25,9 @@ func main() {
 
 	var logFlg = flag.Int("log", -1, "select the activity log")
 
+	// set start flag
+	var startFlag = flag.Bool("start", false, "start activity")
+
 	flag.Parse()
 
 	config := config.LoadConfig()
@@ -61,6 +64,11 @@ func main() {
 
 	if *completeFlag >= 0 {
 		task.Complete(*completeFlag)
+		return
+	}
+
+	if *startFlag {
+		task.CrateActiveStart()
 		return
 	}
 

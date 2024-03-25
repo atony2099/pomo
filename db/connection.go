@@ -196,6 +196,11 @@ func SelectTimeEntry(day string) ([]domain.TimeEntry, error) {
 	return tasks, err
 }
 
+func SaveTimeEntry(entry domain.TimeEntry) error {
+	err := dbs.db.Create(&entry).Error
+	return err
+}
+
 // CREATE TABLE `time_entries` (
 //
 //	`id` varchar(255) NOT NULL,
@@ -236,7 +241,10 @@ func CreateDailyTracker(tracker domain.DailyTracker) error {
 func SelectDailyTracker(date string) ([]domain.DailyTracker, error) {
 	var trackers []domain.DailyTracker
 
-	err := dbs.db.Where("date(end_time) = ?", date).Order("start_time").Find(&trackers).Error
+	// selct end_time  is date ,
+	// if end_time is null, select start_time is date
+
+	err := dbs.db.Where("date(start_time) = ? or date(end_time) = ?", date, date).Order("start_time").Find(&trackers).Error
 	return trackers, err
 }
 
@@ -257,4 +265,11 @@ func GetAllActivityName() ([]string, error) {
 
 	return activities, err
 
+}
+
+func UpdateDailyTracker(tracker domain.DailyTracker) error {
+
+	// where start_time = tracker.start_time and activity = tracker.activity
+	err := dbs.db.Model(&domain.DailyTracker{}).Where("start_time = ? and activity = ?", tracker.StartTime, tracker.Activity).Updates(&tracker).Error
+	return err
 }

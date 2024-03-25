@@ -94,7 +94,9 @@ type DailyTracker struct {
 	ID        uint `gorm:"primaryKey"`
 	Activity  string
 	StartTime time.Time
-	EndTime   time.Time
+	// EndTime   time.Time set end_time to nullable
+
+	EndTime   *time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`

@@ -10,9 +10,8 @@ import (
 
 	"time"
 
-	"github.com/atony2099/pomo/cache"
-
 	"github.com/atony2099/pomo/audio"
+	"github.com/atony2099/pomo/cache"
 	"github.com/atony2099/pomo/ui"
 	"github.com/nsf/termbox-go"
 )
@@ -80,7 +79,7 @@ func (task *TaskHandler) finishPomodoro(start, end time.Time, soundType audio.So
 
 	// excute the sync task
 
-	err := task.sendTimeEntry(context.Background(), start, end)
+	err := task.saveTimeEntry(context.Background(), start, end)
 	if err != nil {
 		fmt.Printf("error posting data: %v\n", err)
 		return
@@ -90,10 +89,14 @@ func (task *TaskHandler) finishPomodoro(start, end time.Time, soundType audio.So
 
 	ui.ClearScreen()
 	if soundType == audio.Finish {
-		go SyncData(task.authKey, task.teamID)
+		go func() {
+			SyncData(task.authKey, task.teamID)
+			Complete(0)
+		}()
 		task.runBreakTimer(exitChan)
 	} else {
 		SyncData(task.authKey, task.teamID)
+		Complete(0)
 	}
 
 }
@@ -121,7 +124,36 @@ func (h *TaskHandler) runBreakTimer(exitChan chan bool) {
 	}
 }
 
-func (h *TaskHandler) sendTimeEntry(ctx context.Context, start, end time.Time) error {
+// func (h *TaskHandler) saveTimeEntry(ctx context.Context, start, end time.Time) error {
+
+// 	// get the selected task
+// 	task, err := cache.GetSelectedTask()
+// 	if err != nil {
+// 		return fmt.Errorf("error getting selected task: %v", err)
+// 	}
+
+// 	taskID := task.TaskID
+// 	if task.SubID != "" {
+// 		taskID = task.SubID
+// 	}
+
+// 	time := domain.TimeEntry{
+// 		TaskID:    taskID,
+// 		StartTime: start,
+// 		EndTime:   end,
+// 	}
+
+// 	err = db.SaveTimeEntry(time)
+
+// 	if err != nil {
+// 		return fmt.Errorf("error saving time entry: %v", err)
+// 	}
+
+// 	return nil
+
+// }
+
+func (h *TaskHandler) saveTimeEntry(ctx context.Context, start, end time.Time) error {
 	url := fmt.Sprintf("https://api.clickup.com/api/v2/team/%s/time_entries", h.teamID)
 	task, err := cache.GetSelectedTask()
 	if err != nil {

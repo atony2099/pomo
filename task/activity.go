@@ -54,8 +54,52 @@ func GetActivities(offset int) {
 		// align the output
 		fmt.Printf("%-20s: %v\n", k, v)
 	}
+
+	fmt.Println()
 }
 
+func completeNullEndTime(day string) {
+	// Fetch activities from daily_trackers for the given date
+	var activities, err = db.SelectDailyTracker(day)
+	if err != nil {
+		fmt.Printf("Error selecting daily tracker from day: %v\n", err)
+		return
+	}
+
+	for _, activity := range activities {
+		if activity.EndTime == nil {
+			// prompt for end time
+
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Printf("Enter end time for %s,which start time is %s: ", activity.Activity, activity.StartTime.Format("15:04:05"))
+			endTime, _ := reader.ReadString('\n')
+			endTime = strings.TrimSpace(endTime)
+
+			if endTime == "" {
+				now := time.Now()
+				activity.EndTime = &now
+			} else {
+				hourInt, err := strconv.Atoi(endTime[:2])
+				if err != nil {
+					log.Fatalf("error converting to int: %v", err)
+				}
+				minuteInt, err := strconv.Atoi(endTime[2:])
+				if err != nil {
+					log.Fatalf("error converting to int: %v", err)
+				}
+
+				endTimes := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), hourInt, minuteInt, 0, 0, time.Local)
+				activity.EndTime = &endTimes
+
+			}
+			err = db.UpdateDailyTracker(activity)
+			if err != nil {
+				log.Fatalf("error updating daily tracker: %v", err)
+			}
+
+		}
+	}
+}
 func Complete(offset int) {
 	// fmt.Println("Complete task")
 
@@ -63,6 +107,9 @@ func Complete(offset int) {
 
 	// format to 2006-01-02
 	day := date.Format("2006-01-02")
+
+	// first complet the activity which end time is null
+	completeNullEndTime(day)
 
 	// Fetch activities from time_entries for the given date
 	var entries, err = db.SelectTimeEntry(day)
@@ -91,7 +138,7 @@ func Complete(offset int) {
 		dailyTracker := domain.DailyTracker{
 			Activity:  "study", // Setting activity name to "study"
 			StartTime: entry.StartTime,
-			EndTime:   entry.EndTime,
+			EndTime:   &entry.EndTime,
 		}
 		db.CreateDailyTracker(dailyTracker)
 		// fmt.Printf("Inserted 'study' activity from %s to %s\n", entry.StartTime.Format("15:04:05"), entry.EndTime.Format("15:04:05"))
@@ -106,6 +153,8 @@ func Complete(offset int) {
 		fmt.Printf("Error inserting study break: %v\n", err)
 		return
 	}
+
+	GetActivities(offset)
 
 	fillMissingActivities(day)
 
@@ -136,13 +185,21 @@ func insertStudyBreak(date string) error {
 				dailyTracker := domain.DailyTracker{
 					Activity:  "study_break", // Setting activity name to "study"
 					StartTime: lastEndTime,
-					EndTime:   activity.StartTime,
+					EndTime:   &activity.StartTime,
+				}
+				db.CreateDailyTracker(dailyTracker)
+			} else if activity.StartTime.Sub(lastEndTime) < 30*time.Minute && lastActivity == defaultActivity {
+				// create a new entry activity name "study_break" with the gap time
+				dailyTracker := domain.DailyTracker{
+					Activity:  "study_distraction", // Setting activity name to "study"
+					StartTime: lastEndTime,
+					EndTime:   &activity.StartTime,
 				}
 				db.CreateDailyTracker(dailyTracker)
 			}
 
 		}
-		lastEndTime = activity.EndTime
+		lastEndTime = *activity.EndTime
 		lastActivity = activity.Activity
 		lastDuration = activity.EndTime.Sub(activity.StartTime)
 	}
@@ -164,13 +221,13 @@ fill:
 	activities, _ := db.SelectDailyTracker(date)
 	for _, activity := range activities {
 		if activity.StartTime.After(lastEndTime) && activity.StartTime.Sub(lastEndTime) > time.Minute {
-			fmt.Printf("lastEndTime222: %s\n", lastEndTime.Format("15:04:05"))
+			// fmt.Printf("lastEndTime222: %s\n", lastEndTime.Format("15:04:05"))
 			change := promptForActivity(lastEndTime, activity.StartTime)
 			if change {
 				goto fill
 			}
 		}
-		lastEndTime = activity.EndTime
+		lastEndTime = *activity.EndTime
 	}
 	fmt.Printf("lastEndTime: %s\n", lastEndTime.Format("15:04:05"))
 
@@ -231,7 +288,7 @@ func promptForActivity(startTime, endTime time.Time) bool {
 	}
 
 	if end == "" {
-		activity.EndTime = endTime
+		activity.EndTime = &endTime
 	} else {
 		hourInt, err := strconv.Atoi(end[:2])
 		if err != nil {
@@ -241,8 +298,16 @@ func promptForActivity(startTime, endTime time.Time) bool {
 		if err != nil {
 			log.Fatalf("error converting to int: %v", err)
 		}
-		activity.EndTime = time.Date(endTime.Year(), endTime.Month(), endTime.Day(), hourInt, minuteInt, 0, 0, time.Local)
+		// activity.EndTime = &(time.Date(endTime.Year(), endTime.Month(), endTime.Day(), hourInt, minuteInt, 0, 0, time.Local))
+
+		endTime := time.Date(startTime.Year(), startTime.Month(), startTime.Day(), hourInt, minuteInt, 0, 0, time.Local)
+		activity.EndTime = &endTime
+
 		changeEndTime = true
+	}
+
+	if activity.EndTime.Before(activity.StartTime) {
+		log.Fatalf("end time is before start time")
 	}
 
 	err := db.CreateDailyTracker(activity)
@@ -282,4 +347,23 @@ func getActivities(reader *bufio.Reader) string {
 		}
 	}
 	return input
+}
+
+func CrateActiveStart() {
+
+	// crate a new activity which start time is current time, and end time is null, activity name is user input
+
+	var activity domain.DailyTracker
+	activity.StartTime = time.Now()
+
+	// get activity name
+	reader := bufio.NewReader(os.Stdin)
+	activity.Activity = getActivities(reader)
+
+	err := db.CreateDailyTracker(activity)
+	if err != nil {
+
+		log.Fatalf("error creating daily tracker: %v", err)
+	}
+
 }
