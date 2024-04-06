@@ -83,7 +83,11 @@ type TaskSummary struct {
 // ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 type TimeEntry struct {
-	gorm.Model
+	ID        string `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+
 	TaskID    string
 	TaskName  string
 	StartTime time.Time

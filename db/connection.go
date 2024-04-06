@@ -154,40 +154,40 @@ func InsertOrUpdateEntries(entry []domain.TimeEntryInfo) error {
 	return nil
 }
 
-func SumTaskDurationsAndUpdateTask() error {
+// func SumTaskDurationsAndUpdateTask() error {
 
-	// USE GORM
-	var taskDurations []*domain.TaskDuration
-	err := dbs.db.Table("time_entries").Select("task_id, SUM(TIMESTAMPDIFF(SECOND, start_time, end_time)) as duration").Group("task_id").Scan(&taskDurations).Error
+// 	// USE GORM
+// 	var taskDurations []*domain.TaskDuration
+// 	err := dbs.db.Table("time_entries").Select("task_id, SUM(TIMESTAMPDIFF(SECOND, start_time, end_time)) as duration").Group("task_id").Scan(&taskDurations).Error
 
-	if err != nil {
-		return fmt.Errorf("failed to sum task durations: %v", err)
-	}
+// 	if err != nil {
+// 		return fmt.Errorf("failed to sum task durations: %v", err)
+// 	}
 
-	for _, taskDuration := range taskDurations {
-		// check if task have child tasks
-		var taskIDs []string
-		dbs.db.Table("tasks").Where("parent_task_id = ?", taskDuration.TaskID).Pluck("task_id", &taskIDs)
-		if len(taskIDs) > 0 {
-			// sum child tasks durations
-			var totalDuration int64
-			for _, taskID := range taskIDs {
-				for _, taskDuration := range taskDurations {
-					if taskID == taskDuration.TaskID {
-						totalDuration += taskDuration.Duration
-					}
-				}
-			}
-			taskDuration.Duration += totalDuration
-		}
-	}
+// 	for _, taskDuration := range taskDurations {
+// 		// check if task have child tasks
+// 		var taskIDs []string
+// 		dbs.db.Table("tasks").Where("parent_task_id = ?", taskDuration.TaskID).Pluck("task_id", &taskIDs)
+// 		if len(taskIDs) > 0 {
+// 			// sum child tasks durations
+// 			var totalDuration int64
+// 			for _, taskID := range taskIDs {
+// 				for _, taskDuration := range taskDurations {
+// 					if taskID == taskDuration.TaskID {
+// 						totalDuration += taskDuration.Duration
+// 					}
+// 				}
+// 			}
+// 			taskDuration.Duration += totalDuration
+// 		}
+// 	}
 
-	for _, taskDuration := range taskDurations {
-		dbs.db.Table("tasks").Where("task_id = ?", taskDuration.TaskID).Update("duration", taskDuration.Duration)
-	}
+// 	for _, taskDuration := range taskDurations {
+// 		dbs.db.Table("tasks").Where("task_id = ?", taskDuration.TaskID).Update("duration", taskDuration.Duration)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func SelectTimeEntry(day string) ([]domain.TimeEntry, error) {
 	var tasks []domain.TimeEntry

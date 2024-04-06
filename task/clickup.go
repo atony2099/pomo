@@ -132,18 +132,18 @@ func SyncData(apiToken, teamID string) {
 		}
 	}
 
-	entries, err := client.getEntries()
-	if err != nil {
-		log.Fatalf("Failed to fetch time entries: %v", err)
-	}
+	// entries, err := client.getEntries()
+	// if err != nil {
+	// 	log.Fatalf("Failed to fetch time entries: %v", err)
+	// }
 
-	if err := db.InsertOrUpdateEntries(entries); err != nil {
-		log.Fatalf("Failed to insert time entries: %v", err)
-	}
+	// if err := db.InsertOrUpdateEntries(entries); err != nil {
+	// 	log.Fatalf("Failed to insert time entries: %v", err)
+	// }
 
-	if err := db.SumTaskDurationsAndUpdateTask(); err != nil {
-		log.Fatalf("Failed to sum task durations: %v", err)
-	}
+	// if err := db.SumTaskDurationsAndUpdateTask(); err != nil {
+	// 	log.Fatalf("Failed to sum task durations: %v", err)
+	// }
 
 }
 

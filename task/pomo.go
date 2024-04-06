@@ -1,17 +1,15 @@
 package task
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 
 	"time"
 
 	"github.com/atony2099/pomo/audio"
 	"github.com/atony2099/pomo/cache"
+	"github.com/atony2099/pomo/db"
+	"github.com/atony2099/pomo/domain"
 	"github.com/atony2099/pomo/ui"
 	"github.com/nsf/termbox-go"
 )
@@ -90,12 +88,12 @@ func (task *TaskHandler) finishPomodoro(start, end time.Time, soundType audio.So
 	ui.ClearScreen()
 	if soundType == audio.Finish {
 		go func() {
-			SyncData(task.authKey, task.teamID)
+			// SyncData(task.authKey, task.teamID)
 			Complete(0)
 		}()
 		task.runBreakTimer(exitChan)
 	} else {
-		SyncData(task.authKey, task.teamID)
+		// SyncData(task.authKey, task.teamID)
 		Complete(0)
 	}
 
@@ -124,37 +122,9 @@ func (h *TaskHandler) runBreakTimer(exitChan chan bool) {
 	}
 }
 
-// func (h *TaskHandler) saveTimeEntry(ctx context.Context, start, end time.Time) error {
-
-// 	// get the selected task
-// 	task, err := cache.GetSelectedTask()
-// 	if err != nil {
-// 		return fmt.Errorf("error getting selected task: %v", err)
-// 	}
-
-// 	taskID := task.TaskID
-// 	if task.SubID != "" {
-// 		taskID = task.SubID
-// 	}
-
-// 	time := domain.TimeEntry{
-// 		TaskID:    taskID,
-// 		StartTime: start,
-// 		EndTime:   end,
-// 	}
-
-// 	err = db.SaveTimeEntry(time)
-
-// 	if err != nil {
-// 		return fmt.Errorf("error saving time entry: %v", err)
-// 	}
-
-// 	return nil
-
-// }
-
 func (h *TaskHandler) saveTimeEntry(ctx context.Context, start, end time.Time) error {
-	url := fmt.Sprintf("https://api.clickup.com/api/v2/team/%s/time_entries", h.teamID)
+
+	// get the selected task
 	task, err := cache.GetSelectedTask()
 	if err != nil {
 		return fmt.Errorf("error getting selected task: %v", err)
@@ -165,35 +135,66 @@ func (h *TaskHandler) saveTimeEntry(ctx context.Context, start, end time.Time) e
 		taskID = task.SubID
 	}
 
-	postData := map[string]interface{}{
-		"start":    start.Unix() * 1000,
-		"duration": int(end.Sub(start).Milliseconds()),
-		"tid":      taskID,
+	// geneternage unique id
+	id := fmt.Sprintf("%s-%d", taskID, time.Now().UnixNano())
+	time := domain.TimeEntry{
+		ID:        id,
+		TaskID:    taskID,
+		StartTime: start,
+		EndTime:   end,
 	}
-	data, err := json.Marshal(postData)
+
+	err = db.SaveTimeEntry(time)
+
 	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", h.authKey)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("response error: %s - %s", resp.Status, body)
+		return fmt.Errorf("error saving time entry: %v", err)
 	}
 
 	return nil
+
 }
+
+// func (h *TaskHandler) saveTimeEntry(ctx context.Context, start, end time.Time) error {
+// 	url := fmt.Sprintf("https://api.clickup.com/api/v2/team/%s/time_entries", h.teamID)
+// 	task, err := cache.GetSelectedTask()
+// 	if err != nil {
+// 		return fmt.Errorf("error getting selected task: %v", err)
+// 	}
+
+// 	taskID := task.TaskID
+// 	if task.SubID != "" {
+// 		taskID = task.SubID
+// 	}
+
+// 	postData := map[string]interface{}{
+// 		"start":    start.Unix() * 1000,
+// 		"duration": int(end.Sub(start).Milliseconds()),
+// 		"tid":      taskID,
+// 	}
+// 	data, err := json.Marshal(postData)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
+// 	if err != nil {
+// 		return fmt.Errorf("error creating request: %v", err)
+// 	}
+
+// 	req.Header.Set("Content-Type", "application/json")
+// 	req.Header.Set("Authorization", h.authKey)
+
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return fmt.Errorf("error sending request: %v", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	if resp.StatusCode != http.StatusOK {
+// 		body, _ := io.ReadAll(resp.Body)
+// 		return fmt.Errorf("response error: %s - %s", resp.Status, body)
+// 	}
+
+// 	return nil
+// }
